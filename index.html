@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>健康知識對戰</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC',sans-serif;background:#EEF2FF;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:1rem}
+.game{width:100%;max-width:540px;padding-bottom:2rem}
+
+/* ── 標題 ── */
+.title-bar{text-align:center;margin-bottom:16px;padding-top:4px}
+.title-bar h1{font-size:22px;font-weight:700;color:#1E3A8A;letter-spacing:0.05em}
+.title-bar p{font-size:13px;color:#64748B;margin-top:3px}
+
+/* ── 難度選擇 ── */
+.difficulty{display:flex;gap:8px;margin-bottom:14px}
+.diff-btn{flex:1;padding:10px;border-radius:12px;border:2px solid #E2E8F0;background:#fff;font-size:13px;font-family:'Noto Sans TC',sans-serif;cursor:pointer;font-weight:500;color:#64748B;transition:all 0.15s}
+.diff-btn.active{border-color:#3B82F6;background:#EFF6FF;color:#1E40AF}
+
+/* ── 統計列 ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat-chip{background:#fff;border-radius:12px;border:1px solid #E2E8F0;padding:10px 6px;text-align:center}
+.stat-val{font-size:20px;font-weight:700;color:#1E3A8A}
+.stat-lbl{font-size:11px;color:#94A3B8;margin-top:2px}
+
+/* ── 戰鬥場地 ── */
+.arena{background:#fff;border-radius:18px;border:1px solid #E2E8F0;padding:1.25rem;margin-bottom:12px}
+.fighters{display:flex;align-items:center;justify-content:space-between}
+.fighter{text-align:center;flex:1}
+.fighter-sprite{font-size:54px;line-height:1;margin-bottom:6px;display:inline-block;transition:transform 0.15s}
+.fighter-sprite.attack{transform:scale(1.4) rotate(-10deg)}
+.fighter-sprite.hurt{transform:translateX(12px) scale(0.82)}
+.fighter-sprite.shake{animation:shake 0.3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.fighter-name{font-size:13px;font-weight:600;color:#334155}
+.hp-bar-bg{height:12px;background:#F1F5F9;border-radius:99px;margin-top:6px;overflow:hidden;border:1px solid #E2E8F0}
+.hp-bar{height:100%;border-radius:99px;transition:width 0.5s cubic-bezier(.4,0,.2,1);background:#22C55E}
+.hp-bar.mid{background:#F59E0B}
+.hp-bar.low{background:#EF4444;animation:pulse-red 0.8s infinite}
+@keyframes pulse-red{0%,100%{opacity:1}50%{opacity:0.7}}
+.hp-text{font-size:11px;color:#94A3B8;margin-top:3px}
+.vs-wrap{flex-shrink:0;padding:0 10px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.vs{font-size:20px;font-weight:700;color:#CBD5E1}
+.round-badge{font-size:11px;background:#F1F5F9;color:#64748B;padding:3px 8px;border-radius:99px;font-weight:500}
+
+/* ── 連勝特效 ── */
+.combo-banner{text-align:center;font-size:13px;font-weight:700;color:#D97706;background:#FEF9C3;border-radius:8px;padding:6px;margin-bottom:10px;display:none;animation:pop 0.3s}
+@keyframes pop{0%{transform:scale(0.8)}100%{transform:scale(1)}}
+
+/* ── 題目卡 ── */
+.question-card{background:#fff;border-radius:18px;border:1px solid #E2E8F0;padding:1.25rem;margin-bottom:12px}
+.q-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.q-category{font-size:11px;padding:4px 12px;border-radius:99px;background:#EFF6FF;color:#1D4ED8;font-weight:600}
+.q-timer-wrap{display:flex;align-items:center;gap:6px}
+.q-timer{font-size:17px;font-weight:700;color:#64748B;min-width:24px;text-align:right;transition:color 0.3s}
+.q-timer.urgent{color:#EF4444}
+.timer-bar-bg{width:60px;height:5px;background:#F1F5F9;border-radius:99px;overflow:hidden}
+.timer-bar{height:100%;background:#3B82F6;border-radius:99px;transition:width 1s linear}
+.timer-bar.urgent{background:#EF4444}
+.q-text{font-size:16px;font-weight:500;color:#1E293B;line-height:1.65;margin-bottom:14px}
+.options{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.opt-btn{padding:13px 8px;border-radius:13px;border:1.5px solid #E2E8F0;background:#fff;color:#334155;font-size:13px;font-family:'Noto Sans TC',sans-serif;cursor:pointer;text-align:center;line-height:1.45;transition:all 0.15s;font-weight:400}
+.opt-btn:hover:not(:disabled){background:#F8FAFC;border-color:#94A3B8;transform:translateY(-1px)}
+.opt-btn.correct{background:#F0FDF4;border-color:#22C55E;color:#14532D;font-weight:600}
+.opt-btn.wrong{background:#FFF1F2;border-color:#EF4444;color:#7F1D1D}
+.opt-btn:disabled{cursor:default;transform:none}
+
+/* ── 訊息欄 ── */
+.log{background:#F8FAFC;border-radius:13px;padding:12px 14px;font-size:13px;color:#475569;min-height:56px;line-height:1.75;margin-bottom:12px;border:1px solid #E2E8F0;white-space:pre-line}
+.log.correct-log{background:#F0FDF4;border-color:#86EFAC;color:#166534}
+.log.wrong-log{background:#FFF1F2;border-color:#FCA5A5;color:#7F1D1D}
+
+/* ── 按鈕 ── */
+.next-btn{width:100%;padding:14px;border-radius:14px;border:none;background:#2563EB;color:#fff;font-size:16px;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer;display:none;letter-spacing:0.03em;transition:all 0.15s}
+.next-btn:hover{background:#1D4ED8}
+.next-btn:active{transform:scale(0.98)}
+
+/* ── 結果畫面 ── */
+.result-screen{background:#fff;border-radius:20px;border:1px solid #E2E8F0;text-align:center;padding:2rem 1.5rem;display:none}
+.result-emoji{font-size:68px;margin-bottom:14px;animation:bounce 0.5s}
+@keyframes bounce{0%{transform:scale(0.5)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+.result-title{font-size:24px;font-weight:700;color:#1E293B;margin-bottom:8px}
+.result-sub{font-size:14px;color:#64748B;margin-bottom:1.5rem;line-height:1.7;white-space:pre-line}
+.result-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1.5rem}
+.r-stat{background:#F8FAFC;border-radius:12px;padding:12px 8px;border:1px solid #E2E8F0}
+.r-stat-val{font-size:22px;font-weight:700;color:#1E3A8A}
+.r-stat-lbl{font-size:11px;color:#94A3B8;margin-top:3px}
+.restart-btn{padding:14px 40px;border-radius:14px;border:none;background:#2563EB;color:#fff;font-size:16px;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer;transition:all 0.15s}
+.restart-btn:hover{background:#1D4ED8}
+
+/* ── 開場畫面 ── */
+.start-screen{background:#fff;border-radius:20px;border:1px solid #E2E8F0;padding:2rem 1.5rem;text-align:center;margin-bottom:12px}
+.start-emoji{font-size:56px;margin-bottom:12px}
+.start-title{font-size:20px;font-weight:700;color:#1E293B;margin-bottom:8px}
+.start-desc{font-size:13px;color:#64748B;line-height:1.7;margin-bottom:1.25rem}
+.start-btn{width:100%;padding:14px;border-radius:14px;border:none;background:#2563EB;color:#fff;font-size:16px;font-weight:700;font-family:'Noto Sans TC',sans-serif;cursor:pointer}
+.start-btn:active{transform:scale(0.98)}
+</style>
+</head>
+<body>
+<div class="game">
+  <div class="title-bar">
+    <h1>⚔️ 健康知識對戰</h1>
+    <p>衛教系學生必玩的健康知識挑戰！</p>
+  </div>
+
+  <!-- 開場 -->
+  <div class="start-screen" id="start-screen">
+    <div class="start-emoji">🧑‍⚕️</div>
+    <div class="start-title">準備好打倒魔王了嗎？</div>
+    <div class="start-desc">答對問題 → 打傷魔王<br>答錯問題 → 被魔王反擊<br>時間越快、連勝越多，加分越高！</div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:13px;color:#64748B;margin-bottom:8px;font-weight:500">選擇難度</div>
+      <div class="difficulty">
+        <button class="diff-btn active" onclick="setDiff('easy',this)">😊 簡單</button>
+        <button class="diff-btn" onclick="setDiff('normal',this)">😤 普通</button>
+        <button class="diff-btn" onclick="setDiff('hard',this)">💀 地獄</button>
+      </div>
+    </div>
+    <button class="start-btn" onclick="startGame()">開始挑戰！▶</button>
+  </div>
+
+  <!-- 遊戲主體（開始後才顯示） -->
+  <div id="game-main" style="display:none">
+    <div class="stats-row">
+      <div class="stat-chip"><div class="stat-val" id="score">0</div><div class="stat-lbl">得分</div></div>
+      <div class="stat-chip"><div class="stat-val" id="streak">0</div><div class="stat-lbl">連勝</div></div>
+      <div class="stat-chip"><div class="stat-val" id="correct">0</div><div class="stat-lbl">答對</div></div>
+      <div class="stat-chip"><div class="stat-val" id="qnum">1/10</div><div class="stat-lbl">關卡</div></div>
+    </div>
+
+    <div class="combo-banner" id="combo-banner">🔥 連勝 x<span id="combo-num">2</span>！傷害加倍！</div>
+
+    <div class="arena">
+      <div class="fighters">
+        <div class="fighter">
+          <div class="fighter-sprite" id="hero-sprite">🧑‍⚕️</div>
+          <div class="fighter-name">健康鬥士</div>
+          <div class="hp-bar-bg"><div class="hp-bar" id="hero-hp" style="width:100%"></div></div>
+          <div class="hp-text" id="hero-hp-text">100 / 100</div>
+        </div>
+        <div class="vs-wrap">
+          <div class="vs">VS</div>
+          <div class="round-badge" id="round-badge">Round 1</div>
+        </div>
+        <div class="fighter">
+          <div class="fighter-sprite" id="boss-sprite">🦠</div>
+          <div class="fighter-name" id="boss-name">壞習慣病毒</div>
+          <div class="hp-bar-bg"><div class="hp-bar" id="boss-hp" style="width:100%"></div></div>
+          <div class="hp-text" id="boss-hp-text">100 / 100</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="question-card" id="question-card">
+      <div class="q-meta">
+        <span class="q-category" id="q-cat">營養</span>
+        <div class="q-timer-wrap">
+          <div class="timer-bar-bg"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
+          <span class="q-timer" id="q-timer">15</span>
+        </div>
+      </div>
+      <div class="q-text" id="q-text">載入中...</div>
+      <div class="options" id="options"></div>
+    </div>
+
+    <div class="log" id="log">準備好了嗎？答對打傷魔王，答錯被反擊！</div>
+    <button class="next-btn" id="next-btn" onclick="nextQ()">下一關 ▶</button>
+  </div>
+
+  <!-- 結果 -->
+  <div class="result-screen" id="result-screen">
+    <div class="result-emoji" id="result-emoji">🏆</div>
+    <div class="result-title" id="result-title">勝利！</div>
+    <div class="result-sub" id="result-sub"></div>
+    <div class="result-stats">
+      <div class="r-stat"><div class="r-stat-val" id="r-score">0</div><div class="r-stat-lbl">最終得分</div></div>
+      <div class="r-stat"><div class="r-stat-val" id="r-correct">0</div><div class="r-stat-lbl">答對題數</div></div>
+      <div class="r-stat"><div class="r-stat-val" id="r-streak">0</div><div class="r-stat-lbl">最高連勝</div></div>
+    </div>
+    <button class="restart-btn" onclick="goStart()">再玩一次 🔄</button>
+  </div>
+</div>
+
+<script>
+const ALL_QS = [
+  {cat:'BMI',q:'BMI 正常範圍是多少？（台灣衛福部標準）',opts:['小於 18.5','18.5 – 24','24 – 27','27 以上'],ans:1,dmg:25,exp:'BMI 18.5–24 為正常體重。低於 18.5 為過輕，24–27 為過重，27 以上為肥胖。'},
+  {cat:'步數',q:'世界衛生組織建議成人每天應走幾步？',opts:['3,000 步','5,000 步','8,000 步','15,000 步'],ans:2,dmg:20,exp:'WHO 建議每天至少 8,000 步，可降低心血管疾病與糖尿病風險。'},
+  {cat:'營養',q:'下列哪種食物含有最多膳食纖維？',opts:['白米飯','雞胸肉','燕麥','全脂牛奶'],ans:2,dmg:25,exp:'燕麥富含β-葡聚醣，是優質膳食纖維的重要來源，有助降低膽固醇。'},
+  {cat:'運動',q:'有氧運動的「目標心率」一般是最大心率的多少？',opts:['20–40%','40–50%','60–80%','90–100%'],ans:2,dmg:20,exp:'有效有氧運動需達最大心率 60–80%，最大心率約為 220 減去年齡。'},
+  {cat:'水分',q:'一般成人每天建議喝多少水？',opts:['500 mL','1,000 mL','2,000 mL','5,000 mL'],ans:2,dmg:25,exp:'每日建議 2,000 mL（約 8 杯），炎熱天氣或大量運動時需增加補充。'},
+  {cat:'睡眠',q:'成年人每晚建議睡幾小時？',opts:['4–5 小時','6–7 小時','7–9 小時','10 小時以上'],ans:2,dmg:20,exp:'CDC 建議成年人每晚睡 7–9 小時，長期睡眠不足與肥胖、糖尿病風險有關。'},
+  {cat:'BMI',q:'台灣標準，BMI 達到多少才算「輕度肥胖」？',opts:['24','27','30','35'],ans:1,dmg:25,exp:'台灣：BMI ≥ 27 輕度肥胖、≥ 30 中度肥胖、≥ 35 重度肥胖。歐美標準是 ≥ 30。'},
+  {cat:'營養',q:'哪種油脂對心血管最有益？',opts:['豬油','奶油','橄欖油','棕櫚油'],ans:2,dmg:20,exp:'橄欖油含豐富單元不飽和脂肪酸與多酚，是地中海飲食的核心，有益心血管健康。'},
+  {cat:'運動',q:'下列哪個「不是」阻力訓練的好處？',opts:['增加肌肉量','提升骨密度','降低血糖','減少睡眠需求'],ans:3,dmg:30,exp:'阻力訓練無法減少睡眠需求，充足睡眠仍是肌肉修復與恢復的必要條件。'},
+  {cat:'衛教',q:'量血壓前應靜坐休息幾分鐘？',opts:['不需休息','1 分鐘','5 分鐘','30 分鐘'],ans:2,dmg:25,exp:'量血壓前靜坐 5 分鐘，避免活動、情緒或咖啡因影響，才能得到準確數值。'},
+  {cat:'營養',q:'缺乏哪種維生素會導致夜盲症？',opts:['維生素 A','維生素 B12','維生素 C','維生素 D'],ans:0,dmg:25,exp:'維生素 A 是合成視網膜視紫質的原料，缺乏時在低光環境下視力會顯著下降。'},
+  {cat:'衛教',q:'正常收縮壓應低於多少 mmHg？',opts:['90','100','120','140'],ans:2,dmg:25,exp:'正常血壓：收縮壓 < 120 mmHg 且舒張壓 < 80 mmHg。超過 140/90 為高血壓。'},
+  {cat:'營養',q:'每日鈉攝取量建議不超過多少毫克？',opts:['1,000 mg','2,000 mg','3,000 mg','5,000 mg'],ans:1,dmg:30,exp:'WHO 建議每日鈉攝取 < 2,000 mg（約 5g 食鹽），過多會增加高血壓風險。'},
+  {cat:'運動',q:'「每週 150 分鐘中等強度運動」是哪個組織的建議？',opts:['WHO','CDC','台灣衛福部','以上皆是'],ans:3,dmg:20,exp:'WHO、CDC 與台灣衛福部均建議成人每週至少 150 分鐘中等強度有氧運動。'},
+  {cat:'BMI',q:'體重 60 公斤、身高 170 公分，BMI 約為多少？',opts:['18.4','20.8','22.5','25.1'],ans:1,dmg:35,exp:'BMI = 60 ÷ (1.70)² = 60 ÷ 2.89 ≈ 20.8。屬於正常範圍（18.5–24）。'},
+];
+
+const BOSSES = [
+  {sprite:'🦠',name:'壞習慣病毒'},
+  {sprite:'🍔',name:'垃圾食物魔王'},
+  {sprite:'😴',name:'懶惰魔王'},
+  {sprite:'🍺',name:'糖分怪獸'},
+  {sprite:'🚬',name:'毒素Boss'},
+  {sprite:'📱',name:'低頭族魔人'},
+];
+
+const DIFF = {
+  easy:  {time:20, heroMaxHp:150, bossDmgMult:0.5, label:'簡單'},
+  normal:{time:15, heroMaxHp:100, bossDmgMult:1.0, label:'普通'},
+  hard:  {time:10, heroMaxHp:70,  bossDmgMult:1.4, label:'地獄'},
+};
+
+let qs, qi, heroHp, heroMaxHp, bossHp, score, streak, maxStreak, correctCount, timer, answered, diff, timerSec;
+
+function setDiff(d, el){
+  diff = d;
+  document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+diff = 'easy';
+
+function shuffle(a){return [...a].sort(()=>Math.random()-0.5)}
+
+function goStart(){
+  document.getElementById('result-screen').style.display='none';
+  document.getElementById('game-main').style.display='none';
+  document.getElementById('start-screen').style.display='block';
+}
+
+function startGame(){
+  document.getElementById('start-screen').style.display='none';
+  document.getElementById('game-main').style.display='block';
+  init();
+}
+
+function init(){
+  const cfg = DIFF[diff];
+  qs = shuffle(ALL_QS).slice(0,10);
+  qi=0; heroMaxHp=cfg.heroMaxHp; heroHp=heroMaxHp; bossHp=100;
+  score=0; streak=0; maxStreak=0; correctCount=0; answered=false;
+  const b = BOSSES[Math.floor(Math.random()*BOSSES.length)];
+  document.getElementById('boss-sprite').textContent = b.sprite;
+  document.getElementById('boss-name').textContent = b.name;
+  document.getElementById('combo-banner').style.display='none';
+  setHp('hero', heroHp, heroMaxHp);
+  setHp('boss', bossHp, 100);
+  updateStats(); loadQ();
+}
+
+function setHp(who, val, max){
+  const pct = Math.max(0, Math.round(val/max*100));
+  const bar = document.getElementById(who+'-hp');
+  bar.style.width = pct+'%';
+  bar.className = 'hp-bar'+(pct<=25?' low':pct<=50?' mid':'');
+  document.getElementById(who+'-hp-text').textContent = Math.max(0,val)+' / '+max;
+}
+
+function updateStats(){
+  document.getElementById('score').textContent = score;
+  document.getElementById('streak').textContent = streak;
+  document.getElementById('correct').textContent = correctCount;
+  document.getElementById('qnum').textContent = (qi+1)+'/'+qs.length;
+  document.getElementById('round-badge').textContent = 'Round '+(qi+1);
+}
+
+function loadQ(){
+  answered = false;
+  const q = qs[qi];
+  const cfg = DIFF[diff];
+  document.getElementById('q-cat').textContent = q.cat;
+  document.getElementById('q-text').textContent = q.q;
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('log').textContent = '選一個答案！時間越快、連勝越多，加分越高！';
+  document.getElementById('log').className = 'log';
+  document.getElementById('combo-banner').style.display = streak>=2 ? 'block':'none';
+  if(streak>=2){
+    document.getElementById('combo-num').textContent = streak;
+  }
+  updateStats();
+
+  const opts = document.getElementById('options');
+  opts.innerHTML = '';
+  q.opts.forEach((o,i)=>{
+    const b = document.createElement('button');
+    b.className='opt-btn'; b.textContent=o;
+    b.onclick=()=>answer(i);
+    opts.appendChild(b);
+  });
+
+  timerSec = cfg.time;
+  const timerEl = document.getElementById('q-timer');
+  const timerBar = document.getElementById('timer-bar');
+  timerEl.textContent = timerSec;
+  timerEl.className = 'q-timer';
+  timerBar.style.transition = 'none';
+  timerBar.style.width = '100%';
+  timerBar.className = 'timer-bar';
+  clearInterval(timer);
+  setTimeout(()=>{
+    timerBar.style.transition = 'width '+cfg.time+'s linear';
+    timerBar.style.width = '0%';
+  },50);
+  timer = setInterval(()=>{
+    timerSec--;
+    timerEl.textContent = timerSec;
+    if(timerSec<=5){ timerEl.className='q-timer urgent'; timerBar.className='timer-bar urgent'; }
+    if(timerSec<=0){ clearInterval(timer); if(!answered) timeOut(); }
+  },1000);
+}
+
+function answer(i){
+  if(answered) return;
+  answered = true;
+  clearInterval(timer);
+  const q = qs[qi];
+  const cfg = DIFF[diff];
+  const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b=>b.disabled=true);
+
+  if(i===q.ans){
+    btns[i].className='opt-btn correct';
+    const timeBonus = Math.max(0, timerSec);
+    const comboMult = streak>=2 ? 1+streak*0.1 : 1;
+    const dmg = Math.round((q.dmg + timeBonus*2) * comboMult);
+    bossHp = Math.max(0, bossHp-dmg);
+    score += dmg + streak*10; streak++; correctCount++;
+    if(streak>maxStreak) maxStreak=streak;
+    setHp('boss', bossHp, 100);
+    anim('hero-sprite','attack'); anim('boss-sprite','hurt');
+    const comboTxt = streak>2 ? '\n🔥 連勝 x'+streak+'！傷害 x'+comboMult.toFixed(1)+'！' : '';
+    document.getElementById('log').textContent = '✅ 正確！造成 '+dmg+' 點傷害！'+comboTxt+'\n💡 '+q.exp;
+    document.getElementById('log').className='log correct-log';
+  } else {
+    btns[i].className='opt-btn wrong';
+    btns[q.ans].className='opt-btn correct';
+    const dmg = Math.round(q.dmg * cfg.bossDmgMult * 0.7);
+    heroHp = Math.max(0, heroHp-dmg); streak=0;
+    setHp('hero', heroHp, heroMaxHp);
+    anim('boss-sprite','attack'); anim('hero-sprite','shake');
+    document.getElementById('log').textContent='❌ 答錯！受到 '+dmg+' 點傷害！\n正解：'+q.opts[q.ans]+'\n💡 '+q.exp;
+    document.getElementById('log').className='log wrong-log';
+  }
+
+  if(bossHp<=0){ setTimeout(()=>endGame(true),900); return; }
+  if(heroHp<=0){ setTimeout(()=>endGame(false),900); return; }
+  if(qi>=qs.length-1){ setTimeout(()=>endGame(heroHp>0),900); return; }
+  document.getElementById('next-btn').style.display='block';
+}
+
+function timeOut(){
+  answered=true;
+  const q=qs[qi]; const cfg=DIFF[diff];
+  const btns=document.querySelectorAll('.opt-btn');
+  btns.forEach(b=>b.disabled=true);
+  btns[q.ans].className='opt-btn correct';
+  const dmg=Math.round(25*cfg.bossDmgMult); heroHp=Math.max(0,heroHp-dmg); streak=0;
+  setHp('hero',heroHp,heroMaxHp);
+  anim('boss-sprite','attack'); anim('hero-sprite','shake');
+  document.getElementById('log').textContent='⏰ 時間到！受到 '+dmg+' 點傷害！\n正解：'+q.opts[q.ans]+'\n💡 '+q.exp;
+  document.getElementById('log').className='log wrong-log';
+  if(heroHp<=0){ setTimeout(()=>endGame(false),900); return; }
+  document.getElementById('next-btn').style.display='block';
+}
+
+function nextQ(){ qi++; loadQ(); }
+
+function anim(id,cls){
+  const el=document.getElementById(id);
+  el.classList.add(cls);
+  setTimeout(()=>el.classList.remove(cls),350);
+}
+
+function endGame(win){
+  clearInterval(timer);
+  document.getElementById('game-main').style.display='none';
+  document.getElementById('result-screen').style.display='block';
+  document.getElementById('r-score').textContent=score;
+  document.getElementById('r-correct').textContent=correctCount+'/'+qs.length;
+  document.getElementById('r-streak').textContent=maxStreak;
+  const acc = Math.round(correctCount/qs.length*100);
+  if(win && acc>=80){
+    document.getElementById('result-emoji').textContent='🏆';
+    document.getElementById('result-title').textContent='完美勝利！';
+    document.getElementById('result-sub').textContent='正確率 '+acc+'%，健康知識超強！\n你已經是合格的衛教鬥士了 💪';
+  } else if(win){
+    document.getElementById('result-emoji').textContent='🎉';
+    document.getElementById('result-title').textContent='勝利！魔王倒下了！';
+    document.getElementById('result-sub').textContent='正確率 '+acc+'%，繼續加強知識！\n距離滿分只差一點點 📚';
+  } else {
+    document.getElementById('result-emoji').textContent='💀';
+    document.getElementById('result-title').textContent='戰敗...不要灰心！';
+    document.getElementById('result-sub').textContent='正確率 '+acc+'%，複習一下再來挑戰！\n每次失敗都是學習機會 🔄';
+  }
+}
+</script>
+</body>
+</html>
